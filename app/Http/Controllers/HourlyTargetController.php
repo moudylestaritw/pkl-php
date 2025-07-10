@@ -27,7 +27,7 @@ class HourlyTargetController extends Controller
             ]);
         }
 
-        return response()->json(['message' => 'Hourly targets created successfully.']);
+        return response()->json(['message' => 'Hourly targets created success.']);
     }
 
     public function updateActual(Request $request)
