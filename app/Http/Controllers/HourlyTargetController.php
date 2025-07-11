@@ -1,61 +1,32 @@
 <?php
 
-namespace App\Http\Controllers;
-
 use Illuminate\Http\Request;
 use App\Models\HourlyTarget;
+use App\Jobs\ResetActualTargetToDefault;
 
-class HourlyTargetController extends Controller
+public function updateActualTarget(Request $request)
 {
-    public function setDefault(Request $request)
-    {
-        $validated = $request->validate([
-            'line_id' => 'required|exists:lines,id',
-            'effective_date' => 'required|date',
-            'targets' => 'required|array',
-        ]);
+    $request->validate([
+        'line_id' => 'required|integer',
+        'hour_slot' => 'required|string',
+        'effective_date' => 'required|date',
+        'actual_target' => 'required|integer'
+    ]);
 
-        foreach ($validated['targets'] as $hourSlot => $target) {
-            HourlyTarget::create([
-                'line_id' => $validated['line_id'],
-                'hour_slot' => $hourSlot,
-                'effective_date' => $validated['effective_date'],
-                'default_target' => $target,
-                'actual_target' => null,
-                'is_overtime' => false,
-                'created_by' => 1
-            ]);
-        }
+    $target = HourlyTarget::where('line_id', $request->line_id)
+        ->where('hour_slot', $request->hour_slot)
+        ->whereDate('effective_date', $request->effective_date)
+        ->first();
 
-        return response()->json(['message' => 'Hourly targets created success.']);
+    if (!$target) {
+        return response()->json(['message' => 'Hourly target not found.'], 404);
     }
 
-    public function updateActual(Request $request)
-    {
-        $validated = $request->validate([
-            'line_id' => 'required|integer',
-            'hour_slot' => 'required|string',
-            'effective_date' => 'required|date',
-            'actual_target' => 'required|integer',
-        ]);
+    $target->actual_target = $request->actual_target;
+    $target->save();
 
-        $target = HourlyTarget::where('line_id', $validated['line_id'])
-            ->where('hour_slot', $validated['hour_slot'])
-            ->where('effective_date', $validated['effective_date'])
-            ->first();
+    // Dispatch reset job in 1 minute
+    ResetActualTargetToDefault::dispatch($target->id)->delay(now()->addMinute());
 
-        if (!$target) {
-            return response()->json([
-                'message' => 'Hourly target not found for given parameters.'
-            ], 404);
-        }
-
-        $target->actual_target = $validated['actual_target'];
-        $target->save();
-
-        return response()->json([
-            'message' => 'Actual target updated successfully.',
-            'data' => $target
-        ]);
-    }
+    return response()->json(['message' => 'Actual target updated. Will reset in 1 minute.']);
 }

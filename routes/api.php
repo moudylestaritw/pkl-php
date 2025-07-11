@@ -23,3 +23,4 @@ Route::get('/ping', function () {
 // Endpoint utama kamu
 Route::post('/hourly-targets/set-default', [HourlyTargetController::class, 'setDefault']);
 Route::post('/hourly-targets/update-actual', [HourlyTargetController::class, 'updateActual']);
+Route::post('/hourly-targets/reset-actual', [HourlyTargetController::class, 'resetActualToDefault']);
